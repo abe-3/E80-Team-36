@@ -1,4 +1,4 @@
-# E80
+# E80 Team 36
 
 This repository includes Arduino sketches (.ino) for the Teensy on the E80 motherboard.
 The files for each lab are included in a separate folder.
