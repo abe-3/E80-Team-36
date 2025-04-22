@@ -59,6 +59,7 @@ volatile bool EF_States[NUM_FLAGS] = {1,1,1};
 ////////////////////////* Setup *////////////////////////////////
 
 void setup() {
+
   
   logger.include(&imu);
   logger.include(&gps);
@@ -85,8 +86,8 @@ void setup() {
 
   int diveDelay = 5000; // how long robot will stay at depth waypoint before continuing (ms)
 
-  const int num_depth_waypoints = 2;
-  double depth_waypoints [] = { 0.5, 1 };  // listed as z0,z1,... etc.
+  const int num_depth_waypoints = 5;
+  double depth_waypoints [] = { 0.5, 1, 1.5, 2, 2.5};  // listed as z0,z1,... etc.
   depth_control.init(num_depth_waypoints, depth_waypoints, diveDelay);
   
   xy_state_estimator.init();
@@ -137,29 +138,31 @@ void loop() {
   }
 
   /* ROBOT CONTROL Finite State Machine */
-  if ( currentTime-depth_control.lastExecutionTime > LOOP_PERIOD ) {
-    depth_control.lastExecutionTime = currentTime;
-    if ( depth_control.diveState ) {      // DIVE STATE //
-      depth_control.complete = false;
-      if ( !depth_control.atDepth ) {
-        depth_control.dive(&z_state_estimator.state, currentTime);
-      }
-      else {
-        depth_control.diveState = false; 
-        depth_control.surfaceState = true;
-      }
-      motor_driver.drive(0,0,depth_control.uV);
-    }
-    if ( depth_control.surfaceState ) {     // SURFACE STATE //
-      if ( !depth_control.atSurface ) { 
-        depth_control.surface(&z_state_estimator.state);
-      }
-      else if ( depth_control.complete ) { 
-        delete[] depth_control.wayPoints;   // destroy depth waypoint array from the Heap
-      }
-      motor_driver.drive(0,0,depth_control.uV);
-    }
+
+  if (depth_control.diveState) {
+  depth_control.complete = false;
+  if (!depth_control.atDepth) {
+    depth_control.dive(&z_state_estimator.state, currentTime);
+  } else {
+    depth_control.diveState = false;
+    depth_control.surfaceState = true;
   }
+  motor_driver.drive(depth_control.uV, depth_control.uV, 0);
+} else if (depth_control.surfaceState) {
+  if (!depth_control.complete) {
+    depth_control.surface(&z_state_estimator.state);
+    motor_driver.drive(depth_control.uV, depth_control.uV, 0);
+  } else {
+    depth_control.surface(&z_state_estimator.state);
+    motor_driver.drive(depth_control.uV, depth_control.uV, 0);
+  }
+}
+
+if (currentTime > 180000) {
+    depth_control.surface(&z_state_estimator.state);
+    motor_driver.drive(depth_control.uV, depth_control.uV, 0);
+}
+
   
   if ( currentTime-adc.lastExecutionTime > LOOP_PERIOD ) {
     adc.lastExecutionTime = currentTime;
